@@ -27,13 +27,14 @@ pub fn r4_app_main(app: *r4os.App) i32 {
     if (!testR4sysVmApi(&ctx)) return 1;
     if (!stressVmLifecycle(&ctx)) return 1;
     if (!testSdkAllocator(&ctx)) return 1;
+    if (!testAllocatorChurn(&ctx)) return 1;
 
     const summary = ctx.dev.memorySummary() orelse return fail(&ctx, "APPHEAPD summary unavailable");
     if (summary.by_kind[r4os.abi.memory_kind_app_heap] != 0) return fail(&ctx, "APPHEAPD AppHeap V1 still visible");
     ctx.sys.write("APPHEAPD VM ranges: ");
     ctx.sys.printU64(summary.by_kind[r4os.abi.memory_kind_virtual_range]);
     ctx.sys.println("");
-    ctx.sys.println("APPHEAPD result: OK");
+    ctx.sys.println("APPHEAPD result: OK churn=bounded cleanup=trimmed");
     return 0;
 }
 
@@ -168,6 +169,92 @@ fn testSdkAllocator(ctx: *DiagApi) bool {
     }
     if (stats.small_regions == 0 or stats.active_allocations < 3 or stats.active_bytes < large.len) return failBool(ctx, "APPHEAPD SDK VM stats failed");
     return numbers.items.len == 48 and numbers.items[0] == 7 and numbers.items[47] == 242;
+}
+
+fn testAllocatorChurn(ctx: *DiagApi) bool {
+    const allocator = ctx.sys.allocator();
+    const before = ctx.sys.allocatorStats();
+    const small_cycles: u64 = 64;
+    const small_len = 192 * 1024;
+    var cycle: u64 = 0;
+    while (cycle < small_cycles) : (cycle += 1) {
+        const memory = allocator.alignedAlloc(u8, .fromByteUnits(64), small_len) catch return failBool(ctx, "APPHEAPD small churn allocation failed");
+        memory[0] = @truncate(cycle + 0x31);
+        memory[memory.len - 1] = @truncate(cycle + 0x71);
+        if (memory[0] != @as(u8, @truncate(cycle + 0x31)) or memory[memory.len - 1] != @as(u8, @truncate(cycle + 0x71))) {
+            allocator.free(memory);
+            return failBool(ctx, "APPHEAPD small churn data failed");
+        }
+        allocator.free(memory);
+    }
+    const after_small = ctx.sys.allocatorStats();
+    const small_commits = counterDelta(before.vm_commit_calls, after_small.vm_commit_calls);
+    const small_decommits = counterDelta(before.vm_decommit_calls, after_small.vm_decommit_calls);
+    if (small_commits > 2 or small_decommits != 0) return failBool(ctx, "APPHEAPD small churn VM traffic failed");
+
+    const direct_cycles: u64 = 32;
+    const direct_len = 1024 * 1024 + 128 * 1024;
+    cycle = 0;
+    while (cycle < direct_cycles) : (cycle += 1) {
+        const memory = allocator.alignedAlloc(u8, .fromByteUnits(4096), direct_len) catch return failBool(ctx, "APPHEAPD direct churn allocation failed");
+        if ((@intFromPtr(memory.ptr) & 4095) != 0) {
+            allocator.free(memory);
+            return failBool(ctx, "APPHEAPD direct churn alignment failed");
+        }
+        memory[0] = @truncate(cycle + 0x21);
+        memory[memory.len - 1] = @truncate(cycle + 0x61);
+        if (memory[0] != @as(u8, @truncate(cycle + 0x21)) or memory[memory.len - 1] != @as(u8, @truncate(cycle + 0x61))) {
+            allocator.free(memory);
+            return failBool(ctx, "APPHEAPD direct churn data failed");
+        }
+        allocator.free(memory);
+    }
+    const after_direct = ctx.sys.allocatorStats();
+    const direct_reserves = counterDelta(after_small.vm_reserve_calls, after_direct.vm_reserve_calls);
+    const direct_commits = counterDelta(after_small.vm_commit_calls, after_direct.vm_commit_calls);
+    const direct_releases = counterDelta(after_small.vm_release_calls, after_direct.vm_release_calls);
+    const direct_hits = counterDelta(after_small.direct_cache_hits, after_direct.direct_cache_hits);
+    if (direct_reserves > 1 or direct_commits > 1 or direct_releases != 0 or direct_hits + direct_reserves < direct_cycles) {
+        return failBool(ctx, "APPHEAPD direct churn VM traffic failed");
+    }
+    if (after_direct.active_allocations != before.active_allocations or after_direct.cached_bytes > 14 * 1024 * 1024) {
+        return failBool(ctx, "APPHEAPD churn bounds failed");
+    }
+
+    ctx.sys.write("APPHEAPD allocator churn: OK small=");
+    ctx.sys.printU64(small_cycles);
+    ctx.sys.write(" direct=");
+    ctx.sys.printU64(direct_cycles);
+    ctx.sys.write(" vm=");
+    ctx.sys.printU64(small_commits);
+    ctx.sys.write("/");
+    ctx.sys.printU64(small_decommits);
+    ctx.sys.write("+");
+    ctx.sys.printU64(direct_reserves);
+    ctx.sys.write("/");
+    ctx.sys.printU64(direct_commits);
+    ctx.sys.write("/");
+    ctx.sys.printU64(direct_releases);
+    ctx.sys.write(" cache-hits=");
+    ctx.sys.printU64(direct_hits);
+    ctx.sys.write(" retained-kb=");
+    ctx.sys.printU64(after_direct.committed_bytes / 1024);
+    ctx.sys.write(" peak-kb=");
+    ctx.sys.printU64(after_direct.peak_committed_bytes / 1024);
+    ctx.sys.println("");
+
+    ctx.sys.allocatorTrim();
+    const trimmed = ctx.sys.allocatorStats();
+    if (trimmed.active_allocations != before.active_allocations or trimmed.direct_cached != 0 or trimmed.cached_bytes != 0 or
+        trimmed.committed_bytes > after_direct.committed_bytes)
+    {
+        return failBool(ctx, "APPHEAPD allocator trim failed");
+    }
+    return true;
+}
+
+fn counterDelta(before: u64, after: u64) u64 {
+    return if (after >= before) after - before else 0;
 }
 
 fn touchSparse(mem: [*]u8, len: u64, seed: u8) bool {

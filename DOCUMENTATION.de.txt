@@ -8,6 +8,13 @@ Seit 0.53.8 prueft sie auch `ProgramVmRegionInfo`-Statistiken. `/HOLDVM`
 haelt eine explizite R4X-VM-Region mit logischem Commit und resident
 beruehrten Pages offen, damit MEMSUITE Kill-while-Commit-Cleanup messen kann.
 
+Seit 0.75.3 prueft der normale Lauf zusaetzlich 64 Wiederholungen eines
+192-KiB-Small-Blocks und 32 Wiederholungen eines 1152-KiB-Direktblocks.
+VM-Aufrufdeltas, Cachetreffer, Peak-Commit, Retention und Datenintegritaet
+werden begrenzt ausgewertet. Abschliessend ruft die Diagnose
+`allocatorTrim()` auf und verlangt einen leeren Direktcache; die verbleibende
+R4X-Ownerbereinigung am Prozessende bleibt Aufgabe des Kernels.
+
 Projektstruktur seit 0.51.21:
 - `build.zig` baut die Diagnose als eigenes SDK-Projekt.
 - `build.zig.zon` bindet `r4os_sdk` als Paket.
@@ -15,12 +22,15 @@ Projektstruktur seit 0.51.21:
 
 Build:
 
-    cd Code\System\Diagnostics\AppHeapDiag
-    ..\..\..\DevTools\Zig\zig.exe build
+    Build.bat
+
+Unter Linux oder macOS:
+
+    ./Build.sh
 
 Ergebnis:
 
-    Code\System\Diagnostics\AppHeapDiag\zig-out\APPHEAPD.R4X
+    zig-out\APPHEAPD.R4X
 
 Contract:
 - Build-Profil: `Zig/R4XStart`

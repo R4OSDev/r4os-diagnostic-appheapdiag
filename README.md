@@ -4,7 +4,7 @@
 
 ## Package
 
-- Version: `0.1.1`
+- Version: `0.1.2`
 - Image target: `/R4OS/SOFTWARE/TERMINAL/DIAG/APPHEAPD.R4X`
 - Image scope: `test`
 - Canonical project manifest: `module.R4MF`
@@ -32,6 +32,10 @@ mapped local checkouts.
 Detailed German technical notes from the migration are preserved in
 `DOCUMENTATION.de.txt`. Source-transfer provenance is recorded in
 `PROVENANCE.txt`.
+
+The normal diagnostic also runs bounded small- and direct-allocation churn,
+checks VM call deltas and cache limits, and explicitly trims every reusable
+region before returning.
 
 ## License
 
