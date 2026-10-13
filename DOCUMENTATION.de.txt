@@ -1,40 +1,13 @@
 ﻿APPHEAPD.R4X
 ============
 
-APPHEAPD.R4X ist seit 0.53.6 die historisch benannte VM-/Allocator-
-Diagnose. Sie prueft R4SYS VM V2, den SDK-Allocator V2 und dass AppHeap V1
-im produktiven Memory-Snapshot nicht mehr sichtbar wird.
-Seit 0.53.8 prueft sie auch `ProgramVmRegionInfo`-Statistiken. `/HOLDVM`
-haelt eine explizite R4X-VM-Region mit logischem Commit und resident
-beruehrten Pages offen, damit MEMSUITE Kill-while-Commit-Cleanup messen kann.
+Stand 0.83.2 / Modul 0.1.3
 
-Seit 0.75.3 prueft der normale Lauf zusaetzlich 64 Wiederholungen eines
-192-KiB-Small-Blocks und 32 Wiederholungen eines 1152-KiB-Direktblocks.
-VM-Aufrufdeltas, Cachetreffer, Peak-Commit, Retention und Datenintegritaet
-werden begrenzt ausgewertet. Abschliessend ruft die Diagnose
-`allocatorTrim()` auf und verlangt einen leeren Direktcache; die verbleibende
-R4X-Ownerbereinigung am Prozessende bleibt Aufgabe des Kernels.
+SDK-Allocator, Churn und Cache-Trim; /HOLD ist das Allocator-Kindfixture. VM-Reserve/Commit/Fault/Release und /HOLDVM liegen jetzt unter SPECTRA CHECK VM.
 
-Projektstruktur seit 0.51.21:
-- `build.zig` baut die Diagnose als eigenes SDK-Projekt.
-- `build.zig.zon` bindet `r4os_sdk` als Paket.
-- `module.R4MF` beschreibt Artefakt, Zielpfad, R4L-Imports und Contract.
-
-Build:
-
-    Build.bat
-
-Unter Linux oder macOS:
-
-    ./Build.sh
-
-Ergebnis:
-
-    zig-out\APPHEAPD.R4X
-
-Contract:
-- Build-Profil: `Zig/R4XStart`
-- R4XStart-Entry: `appheapd_main`
-- App-Klasse: `console`
-- R4L-Imports: `R4SYS`, `R4DEV`
-- Zielpfad im Image: `C:\R4OS\SOFTWARE\TERMINAL\DIAG\APPHEAPD.R4X`
+Build vom Workspace-Root:
+    ./Repositories/Diagnostics/AppHeapDiag/Build.sh
+Unter Windows den entsprechenden Build.bat-Starter verwenden.
+Artefakt: Artifacts/Modules/AppHeapDiag/APPHEAPD.R4X
+Manifest: Repositories/Diagnostics/AppHeapDiag/module.R4MF.
+App-Entry r4_app_main, Konsole ueber normales R4SYS/STDIO.
