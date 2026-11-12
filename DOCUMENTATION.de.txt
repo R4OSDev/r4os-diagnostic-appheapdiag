@@ -1,13 +1,17 @@
-﻿APPHEAPD.R4X
+APPHEAPD.R4X
 ============
 
-Stand 0.83.2 / Modul 0.1.3
+Stand 0.90.80 / Modul 0.1.8
 
-SDK-Allocator, Churn und Cache-Trim; /HOLD ist das Allocator-Kindfixture. VM-Reserve/Commit/Fault/Release und /HOLDVM liegen jetzt unter SPECTRA CHECK VM.
+SDK-Allocator und Churn pruefen weiterhin 64 kleine und 32 direkte Zyklen, die bisherigen VM-Aufrufobergrenzen, 14 MB Cachemaximum, Daten und echten Trim. /HOLD behaelt 2 MB bis Close/Kill. Der gemeinsame ArgCursor akzeptiert hier nur das bisherige ganze /HOLD-Argument; unbekannte Argumente liefern Exit 2.
 
 Build vom Workspace-Root:
     ./Repositories/Diagnostics/AppHeapDiag/Build.sh
 Unter Windows den entsprechenden Build.bat-Starter verwenden.
 Artefakt: Artifacts/Modules/AppHeapDiag/APPHEAPD.R4X
-Manifest: Repositories/Diagnostics/AppHeapDiag/module.R4MF.
-App-Entry r4_app_main, Konsole ueber normales R4SYS/STDIO.
+Manifest: Repositories/Diagnostics/AppHeapDiag/module.R4MF
+Profil: r4os-zig-generation2; Klasse console; IMAGE_SCOPE=test.
+
+module.R4MF ist die Quelle fuer Version, Imports, Ziel und Einstieg.
+Die Bibliotheks-/API-Vertraege liegen beim jeweiligen Besitzer; das SDK
+setzt weder Berechtigungen noch eine zusaetzliche Runtime voraus.

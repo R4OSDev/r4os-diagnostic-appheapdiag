@@ -6,7 +6,7 @@ const DiagApi = struct {
     dev: r4os.r4dev.Context,
     resources: r4os.Resources,
 
-    fn init(app: *r4os.App) ?DiagApi {
+    fn init(app: *r4os.App2) ?DiagApi {
         return .{
             .sys = app.system(),
             .dev = app.devicesLowLevel() orelse return null,
@@ -15,13 +15,13 @@ const DiagApi = struct {
     }
 };
 
-pub fn r4_app_main(app: *r4os.App) i32 {
+pub fn r4_app_main(app: *r4os.App2) i32 {
     var ctx = DiagApi.init(app) orelse return r4os.abi.err_no_group;
     ctx.sys.println("APPHEAPD");
 
     if (!ctx.sys.hasFn("vm_reserve")) return fail(&ctx, "APPHEAPD R4SYS VM missing");
     if (!ctx.dev.hasFn("memory_summary")) return fail(&ctx, "APPHEAPD memory snapshot missing");
-    if (argsEqual(app.args(), "/HOLD")) return holdMode(&ctx);
+    if (holdArgument(app)) return holdMode(&ctx);
     if (app.args().len != 0) return 2;
     if (!testSdkAllocator(&ctx)) return 1;
     if (!testAllocatorChurn(&ctx)) return 1;
@@ -182,12 +182,11 @@ fn failBool(ctx: *DiagApi, msg: []const u8) bool {
     return false;
 }
 
-fn argsEqual(args: []const u8, expected: []const u8) bool {
-    if (args.len != expected.len) return false;
-    for (args, expected) |actual, wanted| if (upperAscii(actual) != upperAscii(wanted)) return false;
-    return true;
-}
-
-fn upperAscii(ch: u8) u8 {
-    return if (ch >= 'a' and ch <= 'z') ch - 32 else ch;
+// Preserve the original whole-argument spelling: no extra tokens/quotes.
+fn holdArgument(app: *const r4os.App2) bool {
+    var failure: r4os.arguments.Failure = .{};
+    var args = app.argCursor(.{}, &failure) catch return false;
+    const token = (args.next() catch return false) orelse return false;
+    return app.args().len == 5 and token.raw_start == 0 and token.raw_end == app.args().len and
+        !token.quoted() and (token.switchIs(app.args(), "HOLD") catch false);
 }

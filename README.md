@@ -1,10 +1,10 @@
-﻿# APPHEAPD.R4X
+# APPHEAPD.R4X
 
 `APPHEAPD.R4X` is an independent R4OS diagnostic program implemented in Zig.
 
 ## Package
 
-- Version: `0.1.2`
+- Version: `0.1.8`
 - Image target: `/R4OS/SOFTWARE/TERMINAL/DIAG/APPHEAPD.R4X`
 - Image scope: `test`
 - Canonical project manifest: `module.R4MF`
@@ -42,3 +42,5 @@ region before returning.
 Original R4OS material is licensed under Apache License 2.0. See `LICENSE`
 and `NOTICE`. Any repository-specific external material is documented in
 `THIRD_PARTY_NOTICES.md`.
+
+Generation 2: Start2/Query2.
